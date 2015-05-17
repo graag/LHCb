@@ -1,0 +1,66 @@
+# Setup
+
+# End Setup
+
+BINS          = NNRunner
+MYLIB         = libNNRunner
+
+SOURCE_C      = NeuralNetReader.cc \
+				NNRunner.cc \
+				HptEventOld.cc \
+				IncEvent.cc \
+				NNRunnerDict.cc
+
+SOURCE_BIN    = Main.cc
+
+OBJS_C        = $(SOURCE_C:.cc=.o)
+OBJS_BIN      = $(SOURCE_BIN:.cc=.o)
+DEPS          = $(OBJS_BIN:%.o=%.P) $(OBJS_C:%.o=%.P)
+DICT_HDRS     = HptEventOld.h \
+				IncEvent.h
+
+CXX           = @CXX@
+LD            = @CXX@
+CXXFLAGS      = @CXXFLAGS@ \
+				-fPIC
+LDFLAGS       = @LDFLAGS@ \
+				-fPIC
+LIBS          = @LIBS@ -lXMLParser -lboost_filesystem@BOOST_LIB_VERSION@ \
+				-lboost_system@BOOST_LIB_VERSION@ \
+				-lboost_regex@BOOST_LIB_VERSION@
+
+CXX          += -MMD
+
+MAKEDEPEND = cp $*.d $*.P; sed -e 's/\#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.P; rm -f $*.d 
+
+all: $(BINS)
+	@echo \*\* Finished NNRunner
+
+NNRunner: $(MYLIB).so $(OBJS_BIN)
+	@echo \*\* Compilation: $@
+	@$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(MYLIB).so : $(OBJS_C)
+	@echo \*\* Creating Library: $@
+	@$(LD) -shared $(LDFLAGS) $^ $(LIBS) -o $@
+
+%.o : %.cc
+	@echo \*\* Compilation: $@
+	@$(CXX) $(CXXFLAGS) -c $<
+	@$(MAKEDEPEND)
+
+NNRunnerDict.cc NNRunnerDict.h : $(DICT_HDRS)
+	@echo \*\* Generating ROOT Dictionary...
+	@$(ROOTSYS)/bin/rootcint -f NNRunnerDict.cc -c $(DICT_HDRS) LinkDef.h
+
+clean :
+	@echo \*\* Cleaning...
+	@rm -f $(BINS) $(OBJS_C) $(OBJS_BIN) $(MYLIB).so NNRunnerDict.cc \
+		NNRunnerDict.h $(DEPS)
+
+distclean : clean
+	@echo \*\* Distribution Cleaning...
+	@rm -rf Makefile aclocal.m4 autom4te.cache config.status	setup.sh *.log
+
+-include $(DEPS)
+

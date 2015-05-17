@@ -1,0 +1,9 @@
+* Make instructions:
+
+./configure
+make
+
+* Rebuild configure script instructions:
+
+$ aclocal -I m4
+$ autoconf
