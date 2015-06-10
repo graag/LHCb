@@ -249,6 +249,18 @@ void MassFit::init()
             "Weight",
             0, 1);
 
+    // Inject additional variable to store weight values
+    // The sPlot will erease the actual values so we have to preserve them
+    if(!weight_name.empty()) {
+        RooRealVar *w_observable = new RooRealVar(
+                (string("wo_")+mass_name).c_str(),
+                "Weight", 0, 1);
+        control_variables.push_back(w_observable);
+        control_names.push_back(weight_name);
+        control_titles.push_back(string("Weight"));
+        control_functions.push_back(NULL);
+    }
+
     observables = new RooArgSet(*mass, *sigma, *weight);
     for(unsigned i=0; i<control_variables.size(); i++) {
         observables->add(*(control_variables[i]));
@@ -326,7 +338,14 @@ void MassFit::plot()
     mframe->GetXaxis()->SetTitle(mass_title.c_str());
     mframe->GetYaxis()->SetNdivisions(505);
 
-    data->plotOn(mframe, Name("myData"));
+    // sPlot removes the weights assigned during DataSet filling.
+    // Create a subset of the original data set with proper weights stored as
+    // control variable during filling.
+    RooDataSet * data_plot = data;
+    if(!weight_name.empty())
+        data_plot = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,(string("wo_")+mass_name).c_str()) ;
+
+    data_plot->plotOn(mframe, Name("myData"));
     fit_pdf->plotOn(mframe, Name("myTot") );
     fit_pdf->plotOn(mframe, Name("mySig"), LineStyle(3), Components(*sig_pdf_plot), LineColor(kRed) );
     fit_pdf->plotOn(mframe, Name("myBkg"), Components(*bkg_pdf_plot), LineColor(kGreen), LineStyle(kDashed) );
@@ -352,6 +371,8 @@ void MassFit::plot()
     canvas->Print((mass_name + ".eps").c_str());
     delete mframe;
 
+    // Extract a data set with sWeights. The sWeights are multipled by the
+    // original weights (at least they should be ...)
     string w_name = string(sig_n->GetName()) + "_sw";
     RooDataSet * data_weight = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,w_name.c_str()) ;
 

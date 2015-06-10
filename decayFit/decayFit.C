@@ -90,14 +90,12 @@ Bool_t decayFit_Process(Long64_t entry)
     MassFit* _fit;
     void* _pt;
     bool _select;
-    double _weight = 1.0;
-    bool _apply_weight = false;
-    if(! _fit->weight_name.empty())
-        _apply_weight = true;
+    double _weight;
 
     if(formula->EvalInstance()) {
         for(unsigned i=0; i<fit_list.size(); i++)
         {
+            _weight = 1.0;
             _fit = fit_list[i];
             if(_fit->formula == NULL) {
                 _select = true;
@@ -178,7 +176,8 @@ Bool_t decayFit_Process(Long64_t entry)
                    *(_fit->control_variables[i]) = v;
                }
 
-               if( _apply_weight ) {
+               // Calculate weight if it was requested
+               if(! _fit->weight_name.empty()) {
                    _member = fClass->GetDataMember(_fit->weight_name.c_str());
                    if(_member->IsaPointer())
                        _pt = *((void**)((Long64_t)this + _member->GetOffset()));

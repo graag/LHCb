@@ -254,6 +254,7 @@ fit->mass_range_max = 6000;
 fit->sigma_range_min = 1;
 fit->sigma_range_max = 60;
 fit->single_candidate = false;
+//fit->weight_name = "Bs_OWNPV_XERR";
 fit->init();
 
 // PDF params
