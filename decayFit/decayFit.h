@@ -51,6 +51,7 @@ class MassFit
         string mass_name; // Name of NTUPLE variable with mass value
         string mass_err_name; // Name of NTUPLE variable with mass error
         string mass_title; // Title of mass axis
+        string weight_name; // Name of a variable to use as a weight
         Double_t mass_range_min; // Range of mass values to use in the fit
         Double_t mass_range_max; //
         Double_t sigma_range_min; // Range of error values to use in the fit
@@ -68,6 +69,7 @@ class MassFit
         RooRealVar* bkg_n; // # Background events
         RooRealVar* sig_mass; // Mass central value
         RooRealVar* sig_sigma; // Mass sigma
+        RooRealVar* weight; // Event weight
         vector<RooRealVar*> parameters; // Parameters to set as const for sPlot
 
         // Variables used to feed RooDataSet
@@ -108,6 +110,7 @@ MassFit::MassFit()
     mass_name = "";
     mass_err_name = "";
     mass_title = "M [MeV/c^{2}]";
+    weight_name = "";
     mass_range_min = 0;
     mass_range_max = 0;
     sigma_range_min = 0;
@@ -135,6 +138,7 @@ MassFit::MassFit()
     sigma = NULL;
     observables = NULL;
     data = NULL;
+    weight = NULL;
 
     // Results
     fit_result = NULL;
@@ -240,8 +244,12 @@ void MassFit::init()
             sigma_range_min,
             sigma_range_max,
             "MeV/c^{2}");
+    weight = new RooRealVar(
+            (string("w_")+mass_name).c_str(),
+            "Weight",
+            0, 1);
 
-    observables = new RooArgSet(*mass, *sigma);
+    observables = new RooArgSet(*mass, *sigma, *weight);
     for(unsigned i=0; i<control_variables.size(); i++) {
         observables->add(*(control_variables[i]));
     }
@@ -249,7 +257,8 @@ void MassFit::init()
     data = new RooDataSet(
             (string("data_")+mass_name).c_str(),
             (name+" data").c_str(),
-            RooArgSet( *observables ) );
+            RooArgSet( *observables ),
+            (string("w_")+mass_name).c_str());
 
     style = new TStyle(*gROOT->GetStyle("Plain"));
     style->SetName("Simple");

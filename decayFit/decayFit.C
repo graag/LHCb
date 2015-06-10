@@ -90,6 +90,10 @@ Bool_t decayFit_Process(Long64_t entry)
     MassFit* _fit;
     void* _pt;
     bool _select;
+    double _weight = 1.0;
+    bool _apply_weight = false;
+    if(! _fit->weight_name.empty())
+        _apply_weight = true;
 
     if(formula->EvalInstance()) {
         for(unsigned i=0; i<fit_list.size(); i++)
@@ -174,7 +178,27 @@ Bool_t decayFit_Process(Long64_t entry)
                    *(_fit->control_variables[i]) = v;
                }
 
-               _fit->data->add( RooArgSet( *(_fit->observables) ) );
+               if( _apply_weight ) {
+                   _member = fClass->GetDataMember(_fit->weight_name.c_str());
+                   if(_member->IsaPointer())
+                       _pt = *((void**)((Long64_t)this + _member->GetOffset()));
+                   else
+                       _pt = (void*)((Long64_t)this + _member->GetOffset());
+                   if(string(_member->GetTypeName()) == "ROOT::TImpProxy<double>")
+                       _weight = *((TDoubleProxy*)_pt);
+                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<float>")
+                       _weight = *((TFloatProxy*)_pt);
+                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<int>")
+                       _weight = *((TIntProxy*)_pt);
+                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >")
+                       _weight = (*((TArrayDoubleProxy*)_pt))[0];
+                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >")
+                       _weight = (*((TArrayFloatProxy*)_pt))[0];
+                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >")
+                       _weight = (*((TArrayIntProxy*)_pt))[0];
+               }
+
+               _fit->data->add( RooArgSet( *(_fit->observables) ), _weight );
             }
         }
     }
