@@ -87,6 +87,7 @@ Bool_t decayFit_Process(Long64_t entry)
 
 #ifndef __CINT__
     TDataMember* _member;
+    string _member_type;
     MassFit* _fit;
     void* _pt;
     bool _select;
@@ -114,60 +115,93 @@ Bool_t decayFit_Process(Long64_t entry)
                 }
 
                _member = fClass->GetDataMember(_fit->mass_name.c_str());
+               _member_type = string(_member->GetTypeName());
                if(_member->IsaPointer())
                    _pt = *((void**)((Long64_t)this + _member->GetOffset()));
                else
                    _pt = (void*)((Long64_t)this + _member->GetOffset());
-               if(string(_member->GetTypeName()) == "ROOT::TImpProxy<double>")
+               if(_member_type == "ROOT::TImpProxy<double>"
+                       || _member_type == "ROOT::Internal::TImpProxy<double>")
                    *(_fit->mass) = *((TDoubleProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<float>")
+               else if(_member_type == "ROOT::TImpProxy<float>"
+                       || _member_type == "ROOT::Internal::TImpProxy<float>")
                    *(_fit->mass) = *((TFloatProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<int>")
+               else if(_member_type == "ROOT::TImpProxy<int>"
+                       || _member_type == "ROOT::Internal::TImpProxy<int>")
                    *(_fit->mass) = *((TIntProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<double,0> >")
                    *(_fit->mass) = (*((TArrayDoubleProxy*)_pt))[0];
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<float,0> >")
                    *(_fit->mass) = (*((TArrayFloatProxy*)_pt))[0];
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
                    *(_fit->mass) = (*((TArrayIntProxy*)_pt))[0];
+               else {
+                   std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
+                   this->Abort("Urecognized data member type");
+               }
 
                _member = fClass->GetDataMember(_fit->mass_err_name.c_str());
+               _member_type = string(_member->GetTypeName());
                if(_member->IsaPointer())
                    _pt = *((void**)((Long64_t)this + _member->GetOffset()));
                else
                    _pt = (void*)((Long64_t)this + _member->GetOffset());
-               if(string(_member->GetTypeName()) == "ROOT::TImpProxy<double>")
+               if(_member_type == "ROOT::TImpProxy<double>"
+                       || _member_type == "ROOT::Internal::TImpProxy<double>")
                    *(_fit->sigma) = *((TDoubleProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<float>")
+               else if(_member_type == "ROOT::TImpProxy<float>"
+                       || _member_type == "ROOT::Internal::TImpProxy<float>")
                    *(_fit->sigma) = *((TFloatProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<int>")
+               else if(_member_type == "ROOT::TImpProxy<int>"
+                       || _member_type == "ROOT::Internal::TImpProxy<int>")
                    *(_fit->sigma) = *((TIntProxy*)_pt);
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<double,0> >")
                    *(_fit->sigma) = (*((TArrayDoubleProxy*)_pt))[0];
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<float,0> >")
                    *(_fit->sigma) = (*((TArrayFloatProxy*)_pt))[0];
-               else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >")
+               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
+                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
                    *(_fit->sigma) = (*((TArrayIntProxy*)_pt))[0];
+               else {
+                   std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
+                   this->Abort("Urecognized data member type");
+               }
 
                for(unsigned i=0; i<_fit->control_names.size(); i++) {
                    double v;
                    _member = fClass->GetDataMember(_fit->control_names[i].c_str());
+                   _member_type = string(_member->GetTypeName());
                    if(_member->IsaPointer())
                        _pt = *((void**)((Long64_t)this + _member->GetOffset()));
                    else
                        _pt = (void*)((Long64_t)this + _member->GetOffset());
-                   if(string(_member->GetTypeName()) == "ROOT::TImpProxy<double>")
+                   if(_member_type == "ROOT::TImpProxy<double>"
+                           || _member_type == "ROOT::Internal::TImpProxy<double>")
                        v = *((TDoubleProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<float>")
+                   else if(_member_type == "ROOT::TImpProxy<float>"
+                           || _member_type == "ROOT::Internal::TImpProxy<float>")
                        v = *((TFloatProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<int>")
+                   else if(_member_type == "ROOT::TImpProxy<int>"
+                           || _member_type == "ROOT::Internal::TImpProxy<int>")
                        v = *((TIntProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<double,0> >")
                        v = (*((TArrayDoubleProxy*)_pt))[0];
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<float,0> >")
                        v = (*((TArrayFloatProxy*)_pt))[0];
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
                        v = (*((TArrayIntProxy*)_pt))[0];
+                   else {
+                       std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
+                       this->Abort("Urecognized data member type");
+                   }
 
                    if(_fit->control_functions[i] != NULL) {
                        v = _fit->control_functions[i]->Eval(v);
@@ -179,22 +213,33 @@ Bool_t decayFit_Process(Long64_t entry)
                // Calculate weight if it was requested
                if(! _fit->weight_name.empty()) {
                    _member = fClass->GetDataMember(_fit->weight_name.c_str());
+                   _member_type = string(_member->GetTypeName());
                    if(_member->IsaPointer())
                        _pt = *((void**)((Long64_t)this + _member->GetOffset()));
                    else
                        _pt = (void*)((Long64_t)this + _member->GetOffset());
-                   if(string(_member->GetTypeName()) == "ROOT::TImpProxy<double>")
+                   if(_member_type == "ROOT::TImpProxy<double>"
+                           || _member_type == "ROOT::Internal::TImpProxy<double>")
                        _weight = *((TDoubleProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<float>")
+                   else if(_member_type == "ROOT::TImpProxy<float>"
+                           || _member_type == "ROOT::Internal::TImpProxy<float>")
                        _weight = *((TFloatProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TImpProxy<int>")
+                   else if(_member_type == "ROOT::TImpProxy<int>"
+                           || _member_type == "ROOT::Internal::TImpProxy<int>")
                        _weight = *((TIntProxy*)_pt);
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<double,0> >")
                        _weight = (*((TArrayDoubleProxy*)_pt))[0];
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<float,0> >")
                        _weight = (*((TArrayFloatProxy*)_pt))[0];
-                   else if(string(_member->GetTypeName()) == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >")
+                   else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
+                           || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
                        _weight = (*((TArrayIntProxy*)_pt))[0];
+                   else {
+                       std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
+                       this->Abort("Urecognized data member type");
+                   }
                }
 
                _fit->data->add( RooArgSet( *(_fit->observables) ), _weight );
@@ -250,11 +295,11 @@ void decayFit_Terminate()
         _fit->plot();
 #endif
 
-        f<<_fit->fom<<",";
+        f<<_fit->fom<<","<<_fit->fom_err<<",";
         f<<_fit->sig_n->getVal()<<","<<_fit->sig_n->getError()<<",";
         f<<_fit->bkg_n->getVal()<<","<<_fit->bkg_n->getError()<<",";
         f<<_fit->sig_mass->getVal()<<","<<_fit->sig_mass->getError()<<",";
-        f<<_fit->sig_sigma->getVal()<<","<<_fit->sig_sigma->getError();
+        f<<_fit->sig_sigma->getVal()<<","<<_fit->sig_sigma->getError()<<"; ";
     }
 
     f<<endl;

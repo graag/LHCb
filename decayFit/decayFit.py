@@ -44,7 +44,7 @@ print "Will load #entries: " + str(ch.GetEntries())
 ch.MakeProxy("decayFit_proxy", os.path.join(script_dir, "decayFit.C"), "", "nohist")
 gSystem.Load("libRooFit")
 gSystem.Load("libRooStats")
-ch.Process("decayFit_proxy.h+");
+ch.Process("decayFit_proxy.h++");
 
 print "Done"
 
