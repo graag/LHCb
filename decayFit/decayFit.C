@@ -41,14 +41,12 @@ void decayFit_SlaveBegin(TTree * /*tree*/)
     cerr<<"# Reading data"<<endl;
 
 #ifndef __CINT__
-    decayFitSetup();
-
     TString option = GetOption();
     if(option != "" and option != "nohist")
         formula = new TTreeFormula("Selection", option, fChain);
     else
         formula = new TTreeFormula("Selection", default_selection, fChain);
-    //formula->Print();
+    formula->Print();
 
     for(unsigned i=0; i<fit_list.size(); i++)
     {
@@ -138,35 +136,6 @@ Bool_t decayFit_Process(Long64_t entry)
                else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
                        || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
                    *(_fit->mass) = (*((TArrayIntProxy*)_pt))[0];
-               else {
-                   std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
-                   this->Abort("Urecognized data member type");
-               }
-
-               _member = fClass->GetDataMember(_fit->mass_err_name.c_str());
-               _member_type = string(_member->GetTypeName());
-               if(_member->IsaPointer())
-                   _pt = *((void**)((Long64_t)this + _member->GetOffset()));
-               else
-                   _pt = (void*)((Long64_t)this + _member->GetOffset());
-               if(_member_type == "ROOT::TImpProxy<double>"
-                       || _member_type == "ROOT::Internal::TImpProxy<double>")
-                   *(_fit->sigma) = *((TDoubleProxy*)_pt);
-               else if(_member_type == "ROOT::TImpProxy<float>"
-                       || _member_type == "ROOT::Internal::TImpProxy<float>")
-                   *(_fit->sigma) = *((TFloatProxy*)_pt);
-               else if(_member_type == "ROOT::TImpProxy<int>"
-                       || _member_type == "ROOT::Internal::TImpProxy<int>")
-                   *(_fit->sigma) = *((TIntProxy*)_pt);
-               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<double,0> >"
-                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<double,0> >")
-                   *(_fit->sigma) = (*((TArrayDoubleProxy*)_pt))[0];
-               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<float,0> >"
-                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<float,0> >")
-                   *(_fit->sigma) = (*((TArrayFloatProxy*)_pt))[0];
-               else if(_member_type == "ROOT::TArrayProxy<ROOT::TArrayType<int,0> >"
-                       || _member_type == "ROOT::Internal::TArrayProxy<ROOT::Internal::TArrayType<int,0> >")
-                   *(_fit->sigma) = (*((TArrayIntProxy*)_pt))[0];
                else {
                    std::cerr<<"decayFit ERROR: Urecognized data member type - "<<_member_type<<std::endl;
                    this->Abort("Urecognized data member type");
@@ -290,10 +259,9 @@ void decayFit_Terminate()
         _fit = fit_list[i];
         cout<<"Name: "<<_fit->name<<", Entries: "<<_fit->data->numEntries()<<endl;
         _fit->fit();
-        _fit->sfit();
-#ifdef DECAY_PLOTS
+        if(_fit->run_sfit)
+            _fit->sfit();
         _fit->plot();
-#endif
 
         f<<_fit->fom<<","<<_fit->fom_err<<",";
         f<<_fit->sig_n->getVal()<<","<<_fit->sig_n->getError()<<",";
