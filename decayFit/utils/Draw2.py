@@ -10,17 +10,20 @@ from ROOT import RooGaussModel, RooFormulaVar, TCanvas
 from ROOT import RooFFTConvPdf, RooNumConvPdf, gPad, RooBreitWigner
 
 # Measured variable
-x     = RooRealVar(  'x',     'x',  -5000, 5000 )
+x     = RooRealVar(  'x',     'x',  5000, 5800 )
+#x     = RooRealVar(  'x',     'x',  -7000, 10000 )
 
 # Parameters
-mean  = RooRealVar(  'mean',  'mean of gaussian', 0 )
-mean2  = RooRealVar(  'mean2',  'mean of gaussian', 0 )
-tau = RooRealVar(  'tau',  'tau', 1000)
-tau2 = RooRealVar(  'tau2',  'tau', 100 )
+mean  = RooRealVar(  'mean',  'mean of gaussian', 0.0 )
+mean2  = RooRealVar(  'mean2',  'mean of gaussian', 5500.0 )
+#mean2  = RooRealVar(  'mean2',  'mean of gaussian', 2700.0 )
+tau = RooRealVar(  'tau',  'tau', 30.0)
 sigma1 = RooRealVar(  'sigma1', 'width of gaussian', 0.01
          )
-sigma2 = RooRealVar(  'sigma2', 'width of gaussian', 100.0
+sigma2 = RooRealVar(  'sigma2', 'width of gaussian', 10.0
          )
+alpha  = RooRealVar(  'alpha', 'alpha', -2.0)
+n  = RooRealVar(  'n', 'n', 1.0)
 
 gauss1 = RooGaussian( 'gauss1', 'gaussian PDF', \
         x, mean, sigma1 )
@@ -45,27 +48,23 @@ decay = RooDecay(
     r1,
     RooDecay.DoubleSided)
 
-r2 = RooGaussModel(
-        "resolution2",
-        "resolution",
+cb = RooCBShape(
+        "cb",
+        "cb",
         x,
         mean2,
-        sigma2
-        )
-decay2 = RooDecay(
-    "exp2",
-    "exp",
-    x,
-    tau2,
-    r2,
-    RooDecay.DoubleSided)
-
+        sigma2,
+        alpha,
+        n)
 
 p1 = decay
-p2 = bw
+p2 = cb
 
 
-pdf = RooNumConvPdf("pdf", 'convolution', x, p1, p2)
+#pdf = RooNumConvPdf("pdf", 'convolution', x, p1, p2)
+x.setBins(10000,"fft") ;
+pdf = RooFFTConvPdf("pdf", 'convolution', x, p1, p2)
+pdf.setBufferFraction(50.0)
 # Plot PDF
 canvas = TCanvas("c1","",1200,480);
 canvas.Divide(3,1);

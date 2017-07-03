@@ -31,6 +31,10 @@
 
 #include "RooIpatia.h"
 #include "RooIpatia2.h"
+#include "RooCassandra.h"
+#include "RooCassandra3.h"
+#include "RooAsymCassandra.h"
+#include "RooAsymCassandra3.h"
 
 using namespace RooFit;
 //using namespace RooStats;

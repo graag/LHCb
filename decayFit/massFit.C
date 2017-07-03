@@ -227,6 +227,7 @@ void MassFit::fit()
     //            Hesse(true),
                 Range(mass_fit_min,mass_fit_max),
                 NumCPU(ncpu),
+                Timer(kTRUE),
                 Save(true)
                 );
     } else {
@@ -236,6 +237,7 @@ void MassFit::fit()
     //            Minimizer("Minuit2", "migrad"),
     //            Hesse(true),
                 NumCPU(ncpu),
+                Timer(kTRUE),
                 Save(true)
                 );
     }
@@ -384,4 +386,8 @@ TString default_selection = "1==1";
 #include "RooIpatiaCommon.cxx"
 #include "RooIpatia.cxx"
 #include "RooIpatia2.cxx"
+#include "RooCassandra.cxx"
+#include "RooCassandra3.cxx"
+#include "RooAsymCassandra.cxx"
+#include "RooAsymCassandra3.cxx"
 #endif // __CINT__
