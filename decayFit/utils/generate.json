@@ -1,0 +1,11 @@
+[
+{
+    "name": "bs_dtf_brem0",
+    "title": "B_s MC PDF - brem0",
+    "selection": "sigmam>0. && sigmam<250. && time>0.3 && time<14. && sigmat<0.12 && BDT_response_NewSel>0.2 && eminus_bremmult==0 && eplus_bremmult==0",
+    "bins": 1000,
+    "var_name": "mass",
+    "min": 4500.0,
+    "max": 6500.0
+}
+]

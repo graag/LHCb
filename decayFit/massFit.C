@@ -18,6 +18,8 @@ MassFit::MassFit()
     mass_range_max = 0;
     mass_fit_min = 0;
     mass_fit_max = 0;
+    mass_plot_min = 0;
+    mass_plot_max = 0;
     mass_logy_max = 0;
     mass_logy_min = 0;
 
@@ -54,6 +56,7 @@ MassFit::MassFit()
     bins_pull = 40;
     ncpu = 1;
     run_sfit = true;
+    save_output = true;
 }
 
 MassFit::~MassFit()
@@ -214,36 +217,63 @@ void MassFit::init()
     style->SetPalette(1,0);
     style->SetOptFit(1111);
     style->SetOptStat(0);
+    //TODO Add option to disable title
+    style->SetOptTitle(0);
+
 }
 
 void MassFit::fit()
 {
+    RooLinkedList param_list;
+    RooCmdArg* arg;
+    arg = new RooCmdArg(); *arg = Extended(true);
+    param_list.Add(arg);
+    arg = new RooCmdArg(); *arg = NumCPU(ncpu);
+    param_list.Add(arg);
+    arg = new RooCmdArg(); *arg = Timer(kTRUE);
+    param_list.Add(arg);
+    arg = new RooCmdArg(); *arg = Save(true);
+    param_list.Add(arg);
+
     if(mass_fit_min != mass_fit_max) {
         cerr<<"Fit will be performed in range: ("<<mass_fit_min<<", "<<mass_fit_max<<")"<<endl;
-        fit_result = fit_pdf->fitTo(
-                *data,
-                Extended(true),
-    //            Minimizer("Minuit2", "migrad"),
-    //            Hesse(true),
-                Range(mass_fit_min,mass_fit_max),
-                NumCPU(ncpu),
-                Timer(kTRUE),
-                Save(true)
-                );
-    } else {
-        fit_result = fit_pdf->fitTo(
-                *data,
-                Extended(true),
-    //            Minimizer("Minuit2", "migrad"),
-    //            Hesse(true),
-                NumCPU(ncpu),
-                Timer(kTRUE),
-                Save(true)
-                );
+        arg = new RooCmdArg(); *arg = Range(mass_fit_min,mass_fit_max);
+        param_list.Add(arg);
     }
+    if(constraints.size()) {
+        cerr<<"Fit will be performed using external constraints:"<<endl;
+        RooArgSet ext_constraints;
+        for(unsigned i=0; i<constraints.size(); i++) {
+            ext_constraints.add(*constraints[i]);
+            cerr<<"- "<<constraints[i]->GetName()<<endl;
+        }
+        arg = new RooCmdArg(); *arg = ExternalConstraints(ext_constraints);
+        param_list.Add(arg);
+    }
+
+    fit_result = fit_pdf->fitTo(
+            *data,
+            param_list
+            );
 
     RooArgSet* params = fit_pdf->getParameters(*data);
     params->printLatex(OutputFile((mass_name + "_fit.tex").c_str()));
+    ofstream param_outfile;
+    param_outfile.open(mass_name + "_fit.csv");
+    RooFIter it = params->fwdIterator();
+    RooAbsArg *next = 0;
+    bool first_par = 1;
+    params->printValue(param_outfile);
+    param_outfile<<endl;
+    while((0 != (next= it.next()))) {
+        if(!first_par) {
+            param_outfile<<", ";
+        } else {
+            first_par = 0;
+        }
+        next->printStream(param_outfile,RooPrintable::kValue,RooPrintable::kInline,"");
+    }
+    param_outfile.close();
 }
 
 void MassFit::sfit(){
@@ -275,24 +305,30 @@ void MassFit::plot()
 {
     style->cd();
 
-    canvas = new TCanvas((string("Canvas ")+name).c_str(),"",600,480);
+    canvas = new TCanvas((string("Canvas ")+name).c_str());
     canvas->Divide(1,2,0.1,0.1);
     TPad* padHisto = (TPad*) canvas->cd(1);
     TPad* padPull = (TPad*) canvas->cd(2);
     double r = 0.25;
     double small = 0.1;
     padHisto->SetPad( 0., r , 1., 1. );
-    padHisto->SetBottomMargin(0.01);
+    padHisto->SetBottomMargin(0.0);
     padPull->SetPad( 0., 0., 1., r  );
     padPull->SetBottomMargin( 0.3  );
-    padPull->SetTopMargin(0.01);
+    padPull->SetTopMargin(0.02);
     padHisto->cd();
 
-    RooPlot *mframe = mass->frame(Bins(bins));
+    double mass_lo = mass_range_min;
+    double mass_hi = mass_range_max;
+    if (mass_plot_min != mass_plot_max) {
+        mass_lo = mass_plot_min;
+        mass_hi = mass_plot_max;
+    }
+    //RooPlot *mframe = mass->frame(Bins(bins), Range(mass_lo, mass_hi));
+    RooPlot *mframe = mass->frame(mass_lo, mass_hi, bins);
     mframe->SetTitle(name.c_str());
     mframe->GetXaxis()->SetTitle(mass_title.c_str());
     mframe->GetYaxis()->SetNdivisions(505);
-    gPad->SetLogy();
 
     // sPlot removes the weights assigned during DataSet filling.
     // Create a subset of the original data set with proper weights stored as
@@ -301,14 +337,14 @@ void MassFit::plot()
     //if(!weight_name.empty())
     //    data_plot = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,(string("wo_")+mass_name).c_str()) ;
 
-    data_plot->plotOn(mframe, Name("myData"));
-    for(int i=0; i<sig_components.size(); i++) {
-        fit_pdf->plotOn(mframe, Name((string("mySig_")+std::to_string(i+1)).c_str()), LineStyle(3), Components(*(sig_components[i])), LineColor(kRed+i) );
+    data_plot->plotOn(mframe, Name("myData"), MarkerSize(0.1), Range(mass_lo, mass_hi));
+    for(unsigned i=0; i<sig_components.size(); i++) {
+        fit_pdf->plotOn(mframe, Name((string("mySig_")+std::to_string(i+1)).c_str()), LineStyle(7), LineWidth(3), Components(*(sig_components[i])), LineColor(kRed+i), Range(mass_lo, mass_hi) );
     }
-    for(int i=0; i<bkg_components.size(); i++) {
-        fit_pdf->plotOn(mframe, Name((string("myBkg_")+std::to_string(i+1)).c_str()), Components(*(bkg_components[i])), LineColor(kGreen+i), LineStyle(kDashed) );
+    for(unsigned i=0; i<bkg_components.size(); i++) {
+        fit_pdf->plotOn(mframe, Name((string("myBkg_")+std::to_string(i+1)).c_str()), Components(*(bkg_components[i])), LineColor(kGreen+i), LineStyle(kDashed), LineWidth(3), Range(mass_lo, mass_hi) );
     }
-    fit_pdf->plotOn(mframe, Name("myTot") );
+    fit_pdf->plotOn(mframe, Name("myTot"), Range(mass_lo, mass_hi) );
     if(this->plot_params) fit_pdf->paramOn(mframe, Layout(0.10,0.45,0.99), ShowConstants(true) );
     mframe->SetMinimum(0.1);
 
@@ -332,50 +368,148 @@ void MassFit::plot()
 
     canvas->cd(2);
     RooHist* hpull = mframe->pullHist();
+    //TODO Add option to disable title
     RooPlot* mframe2 = mass->frame(Title("Pull"),Bins(bins_pull));
-    mframe2->addPlotable(hpull,"P");
+    //TODO Add option to select style??
+    mframe2->addPlotable(hpull,"E3");
     mframe2->GetXaxis()->SetTitle(mass_title.c_str());
+    mframe2->GetYaxis()->SetRangeUser(-4.5, 4.5);
     mframe2->SetTitleSize(0.1,"x");
     mframe2->SetTitleSize(0.1,"y");
     mframe2->SetLabelSize(0.1,"x");
     mframe2->SetLabelSize(0.1,"y");
     mframe2->Draw();
-    TLine* l_centr = new TLine(mass_range_min,0,mass_range_max,0);
-    l_centr->SetLineColor(1);
+    TLine* l_centr = new TLine(mass_range_min+(mass_range_max-mass_range_min)/50.0,0,mass_range_max-(mass_range_max-mass_range_min)/50.0,0);
+    l_centr->SetLineColor(2);
+    l_centr->SetLineWidth(3);
     l_centr->Draw("same");
-    TLine* l_sigma1 = new TLine(mass_range_min,-3,mass_range_max,-3);
-    l_sigma1->SetLineColor(2);
-    TLine* l_sigma2 = new TLine(mass_range_min,3,mass_range_max,3);
-    l_sigma2->SetLineColor(2);
+    //TLine* l_sigma1 = new TLine(mass_range_min,-3,mass_range_max,-3);
+    //l_sigma1->SetLineColor(2);
+    //TLine* l_sigma2 = new TLine(mass_range_min,3,mass_range_max,3);
+    //l_sigma2->SetLineColor(2);
 //    if ((hpull->Integral())<-5. || (hpull->Integral())>5.){
 //    if ((hpull->GetMinimum())<-5. || (hpull->GetMaximum())>5.){
-       l_sigma1->Draw("same");
-       l_sigma2->Draw("same");
+       //l_sigma1->Draw("same");
+       //l_sigma2->Draw("same");
 //    }
 
     canvas->Print((mass_name + ".pdf").c_str());
+
+    // Draw log plot
+
+    canvas->cd(1);
+    gPad->SetLogy();
+    mframe->Draw();
+    canvas->Print((mass_name + "_log.pdf").c_str());
     delete mframe;
     delete mframe2;
 
-    // Extract a data set with sWeights. The sWeights are multipled by the
-    // original weights (at least they should be ...)
-    //string w_name = string(sig_n->GetName()) + "_sw";
-    //RooDataSet * data_weight = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,w_name.c_str()) ;
+    if(run_sfit) {
+        TCanvas* canvas2 = new TCanvas((string("Canvas2 ")+name).c_str());
+        // Extract a data set with sWeights. The sWeights are multipled by the
+        // original weights (at least they should be ...)
+        string w_name = string(sig_n->GetName()) + "_sw";
+        string bgw_name = string(bkg_n->GetName()) + "_sw";
+        // Test of Workspace. Import data to workspace to extract sweight variables
+        RooWorkspace* wspace = new RooWorkspace("myWS");
+        wspace->import(*data);
+        // Plot signal weight
+        RooRealVar* sig_sw = wspace->var(w_name.c_str());
+        cout<<sig_sw<<endl;
+        sig_sw->SetTitle("Signal sWeight");
+        sig_sw->setRange(-2.0, 2.0);
+        RooPlot* frame_sigsw = sig_sw->frame(Title("Signal sWeights"));
+        data->plotOn(frame_sigsw, Range(mass_lo, mass_hi));
+        frame_sigsw->Draw();
+        canvas->Print((mass_name + string("_signal_weight.pdf")).c_str());
+        // Plot bkg weight
+        RooRealVar* bkg_sw = wspace->var(bgw_name.c_str());
+        bkg_sw->SetTitle("Background sWeight");
+        bkg_sw->setRange(-2.0, 2.0);
+        RooPlot* frame_bkgsw = bkg_sw->frame(Title("Background sWeights"));
+        data->plotOn(frame_sigsw, Range(mass_lo, mass_hi));
+        frame_bkgsw->Draw();
+        canvas->Print((mass_name + string("_background_weight.pdf")).c_str());
 
-    /*
-    for(unsigned i=0; i<control_names.size(); i++) {
-        RooPlot *mframe = control_variables[i]->frame(Bins(bins));
-        mframe->SetTitle(name.c_str());
-        mframe->GetXaxis()->SetTitle(control_titles[i].c_str());
-        mframe->GetYaxis()->SetNdivisions(505);
+        RooDataSet * data_weight = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,w_name.c_str()) ;
+        for(unsigned i=0; i<control_names.size(); i++) {
+            RooPlot *mframe = control_variables[i]->frame(Bins(bins));
+            mframe->SetTitle(name.c_str());
+            mframe->GetXaxis()->SetTitle(control_titles[i].c_str());
+            mframe->GetYaxis()->SetNdivisions(505);
 
-        data_weight->plotOn(mframe, Name("myData"));
-        mframe->Draw();
-        canvas->Print((mass_name + string("_") + control_names[i] + ".eps").c_str());
-        delete mframe;
+            data_weight->plotOn(mframe, Name("myData"));
+            mframe->Draw();
+            canvas->Print((mass_name + string("_") + control_names[i] + ".pdf").c_str());
+            delete mframe;
+        }
     }
-    */
 }
+
+void MassFit::save()
+{
+    TFile* out_file = new TFile((mass_name+"_data.root").c_str(),"recreate");
+    RooWorkspace w("decayFit") ;
+    //w.import(*mass);
+    w.import(*fit_pdf);
+    w.import(*data);
+    //w.import(*sig_pdf);
+    //w.import(*bkg_pdf);
+    //w.import(*fit_result);
+    //w.import(*sfit_results);
+    //w.import(*sig_n);
+    //w.import(*bkg_n);
+    //for(unsigned i=0; i<sig_components.size(); i++) {
+    //    w.import(*(sig_components[i]));
+    //}
+    //for(unsigned i=0; i<bkg_components.size(); i++) {
+    //    w.import(*(bkg_components[i]));
+    //}
+    //for(unsigned i=0; i<control_variables.size(); i++) {
+    //    w.import(*(control_variables[i]));
+    //}
+    w.Write();
+    TTree* t = data->GetClonedTree();
+    t->Write();
+    out_file->Save();
+    out_file->Close();
+    delete out_file;
+}
+
+void MassFit::load()
+{
+    cout<<"LOAD"<<endl;
+    TFile* in_file = new TFile((mass_name+"_data.root").c_str(),"read");
+    RooWorkspace* w = (RooWorkspace*) in_file->Get("decayFit");
+    cout<<"LOAD wspace"<<endl;
+    mass = w->var(mass->GetName());
+    cout<<"LOAD mass"<<endl;
+    data = (RooDataSet*) w->data(data->GetName());
+    cout<<"LOAD data"<<endl;
+    sig_pdf = w->pdf(sig_pdf->GetName());
+    bkg_pdf = w->pdf(bkg_pdf->GetName());
+    fit_pdf = w->pdf(fit_pdf->GetName());
+    cout<<"LOAD pdfs"<<endl;
+    //in_file->GetObject(fit_result->GetName(), fit_result);
+    //in_file->GetObject(sfit_results->GetName(), sfit_results);
+    sig_n = w->var(sig_n->GetName());
+    bkg_n = w->var(bkg_n->GetName());
+    cout<<"LOAD counts"<<endl;
+    for(unsigned i=0; i<sig_components.size(); i++) {
+        sig_components[i] = w->pdf(sig_components[i]->GetName());
+    }
+    for(unsigned i=0; i<bkg_components.size(); i++) {
+        bkg_components[i] = w->pdf(bkg_components[i]->GetName());
+    }
+    cout<<"LOAD pdf components"<<endl;
+    for(unsigned i=0; i<control_variables.size(); i++) {
+        control_variables[i] = w->var(control_variables[i]->GetName());
+    }
+    cout<<"LOAD controls"<<endl;
+    in_file->Close();
+    delete in_file;
+}
+
 
 // Globals
 
@@ -390,4 +524,7 @@ TString default_selection = "1==1";
 #include "RooCassandra3.cxx"
 #include "RooAsymCassandra.cxx"
 #include "RooAsymCassandra3.cxx"
+#include "RooExpGaussExp.cxx"
+#include "RooDoubleCBShape.cxx"
+#include "RooCutCBShape.cxx"
 #endif // __CINT__

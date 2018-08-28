@@ -9,18 +9,25 @@ import argparse
 supported_pdfs = [
         "RooGaussian",
         "RooParamGaussian",
+        "RooParamGaussianOffset",
         "RooPolynomial",
         "RooChebychev",
         "RooExponential",
         "RooVoigtian",
         "RooCBShape",
+        "RooParamCBShape",
+        "RooDoubleCBShape",
+        "RooCutCBShape",
         "RooArgusBG",
         "RooRArgusBG",
         "RooIpatia",
+        "RooIpatia2",
         "RooCassandra",
         "RooDecay",
         "RooDecayLeft",
         "RooDecayRight",
+        "RooExpGaussExp",
+        "RooHistPdf",
         "FFT_RooDecay_RooBreitWigner",
         "Conv_RooDecay_RooBreitWigner",
         "FFT_RooDecay_RooCBShape",
@@ -30,7 +37,11 @@ supported_pdfs = [
         "Conv_RooAsymCassandra_RooGaussian",
         "FFT_RooAsymCassandra3_RooGaussian",
         "FFT_RooCassandra_RooCBShape",
-        "FFT_RooCassandra3_RooCBShape"
+        "FFT_RooCassandra3_RooCBShape",
+        "FFT_RooHistPdf_RooGaussian",
+        "Conv_RooHistPdf_RooGaussian",
+        "FFT_RooDoubleCBShape_RooGaussian",
+        "FFT_2xRooCBShape_RooGaussian"
         ]
 
 start_time = time.time()
@@ -44,6 +55,8 @@ parser.add_argument('-n', '--tree-name', dest='tree_name', action='store',
                     help='Tree name with path inside the ROOT file.')
 parser.add_argument('-l', '--list', dest='list', action='store_true',
                     help='List supported PDFs.')
+parser.add_argument('-L', '--load', dest='load', action='store_true',
+                    help='Load fit results from a ROOT file. Skip loading trees.')
 
 args = parser.parse_args()
 
@@ -51,6 +64,10 @@ if args.list:
     for _pdf in supported_pdfs:
         print "- %s" % _pdf
     sys.exit(0)
+
+if args.load and len(args.trees) > 1:
+    print "Specify single input file to load fit results."
+    sys.exit(1)
 
 setup = args.setup
 jobs = args.trees
@@ -72,29 +89,33 @@ print "Input files: %s" % jobs
 sys.argv.append('-b')
 import ROOT
 from ROOT import gSystem, gROOT, TChain, TF1, TH1D, TPaveLabel, TList, kTRUE
+from ROOT import TFile
 
-# Load data files
-ch = TChain(tree)
+if not args.load:
+    # Load data files
+    ch = TChain(tree)
 
-i=0
-for job in jobs:
-    name = "%s/%s" %(job, path)
-    print "Adding: " + name
-    ch.Add(name)
+    i=0
+    for job in jobs:
+        name = "%s/%s" %(job, path)
+        print "Adding: " + name
+        ch.Add(name)
 
-print "Will load #files: " + str(ch.GetListOfFiles().GetEntries())
-print "Will load #entries: " + str(ch.GetEntries())
+    print "Will load #files: " + str(ch.GetListOfFiles().GetEntries())
+    print "Will load #entries: " + str(ch.GetEntries())
+
 gSystem.Load("libRooFit")
 gSystem.Load("libRooStats")
 
 # Compile and load the MassFit class
 gROOT.ProcessLine(".L %s+" % os.path.join(script_dir, "massFit.C"))
-from ROOT import MassFit, fit_list, RooRealVar, RooGaussian, RooArgList
+from ROOT import RooFit, MassFit, fit_list, RooRealVar, RooGaussian, RooArgList
 from ROOT import RooAddPdf, RooPolynomial, RooChebychev, RooExponential
-from ROOT import RooVoigtian, RooCBShape, RooArgusBG, RooDecay
+from ROOT import RooVoigtian, RooCBShape, RooArgusBG, RooDecay, RooHistPdf
 from ROOT import RooGaussModel, RooFormulaVar, RooIpatia, RooBreitWigner
 from ROOT import RooFFTConvPdf, RooNumConvPdf, RooCassandra, RooCassandra3
-from ROOT import RooAsymCassandra, RooAsymCassandra3
+from ROOT import RooAsymCassandra, RooAsymCassandra3, RooDataSet, RooArgSet
+from ROOT import RooExpGaussExp, RooDoubleCBShape, RooIpatia2, RooCutCBShape
 
 
 def init_pdfs(fit, params, prefix, signal):
@@ -126,6 +147,7 @@ def init_pdfs(fit, params, prefix, signal):
     for _comp in params["components"]:
         # Create parameters
         _comp_params = TList()
+        _comp_constrs = TList()
         for _par in _comp["params"]:
             _name = prefix + "_" + _par["name"]
             if _name in _params:
@@ -138,6 +160,16 @@ def init_pdfs(fit, params, prefix, signal):
                 fit.parameters.push_back(_var)
                 _comp_params.Add(_var)
                 _params[_name] = _var
+                if "constraint" in _par:
+                    _constr = RooGaussian(
+                            _name+"_constr",
+                            _par["title"]+"_constr",
+                            _var,
+                            RooFit.RooConst(_par["constraint"]["mean"]),
+                            RooFit.RooConst(_par["constraint"]["sigma"])
+                            )
+                    fit.constraints.push_back(_constr)
+                    _comp_constrs.Add(_constr)
         # Store mean and sigma of core part of the signal PDF
         if _i == 1 and signal == True:
             fit.sig_mass = _comp_params.At(0)
@@ -170,6 +202,32 @@ def init_pdfs(fit, params, prefix, signal):
                     fit.mass,
                     _comp_params.At(0),
                     _v)
+                    )
+        elif _comp["type"] == "RooParamGaussianOffset":
+            _m = RooFormulaVar(
+                    _name+"_var_mean",
+                    "",
+                    "@0+@1",
+                    RooArgList(
+                        _comp_params.At(0),
+                        _comp_params.At(1))
+                    )
+            _s = RooFormulaVar(
+                    _name+"_var_sigma",
+                    "",
+                    "@0*@1",
+                    RooArgList(
+                        _comp_params.At(2),
+                        _comp_params.At(3))
+                    )
+            _funcs.Add(_m)
+            _funcs.Add(_s)
+            _components.Add(RooGaussian(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _m,
+                    _s)
                     )
         elif _comp["type"] == "RooPolynomial":
             if len(_comp_params):
@@ -218,6 +276,48 @@ def init_pdfs(fit, params, prefix, signal):
                     _comp_params.At(2),
                     _comp_params.At(3))
                     )
+        elif _comp["type"] == "RooParamCBShape":
+            _v = RooFormulaVar(
+                    _name+"_variable",
+                    "",
+                    "@0*@1",
+                    RooArgList(
+                        _comp_params.At(1),
+                        _comp_params.At(2))
+                    )
+            _funcs.Add(_v)
+            _components.Add(RooCBShape(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _v,
+                    _comp_params.At(3),
+                    _comp_params.At(4))
+                    )
+        elif _comp["type"] == "RooDoubleCBShape":
+            _components.Add(RooDoubleCBShape(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _comp_params.At(1),
+                    _comp_params.At(2),
+                    _comp_params.At(3),
+                    _comp_params.At(4),
+                    _comp_params.At(5))
+                    )
+        elif _comp["type"] == "RooCutCBShape":
+            _components.Add(RooCutCBShape(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _comp_params.At(1),
+                    _comp_params.At(2),
+                    _comp_params.At(3),
+                    _comp_params.At(4))
+                    )
         elif _comp["type"] == "RooArgusBG":
             _components.Add(RooArgusBG(
                     _name,
@@ -255,6 +355,21 @@ def init_pdfs(fit, params, prefix, signal):
                     _comp_params.At(4),
                     _comp_params.At(5),
                     _comp_params.At(6))
+                    )
+        elif _comp["type"] == "RooIpatia2":
+            _components.Add(RooIpatia2(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _comp_params.At(1),
+                    _comp_params.At(2),
+                    _comp_params.At(3),
+                    _comp_params.At(4),
+                    _comp_params.At(5),
+                    _comp_params.At(6),
+                    _comp_params.At(7),
+                    _comp_params.At(8))
                     )
         elif _comp["type"] == "RooCassandra":
             _components.Add(RooCassandra(
@@ -317,6 +432,26 @@ def init_pdfs(fit, params, prefix, signal):
                 RooDecay.SingleSided)
                 )
             _funcs.Add(_r)
+        elif _comp["type"] == "RooExpGaussExp":
+            _components.Add(RooExpGaussExp(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _comp_params.At(1),
+                    _comp_params.At(2),
+                    _comp_params.At(3))
+                    )
+        elif _comp["type"] == "RooHistPdf":
+            if 'config' not in _comp:
+                raise Exception("Missing 'config' section for RooHistPdf.")
+            if 'file' not in _comp['config']:
+                raise Exception("Missing 'file' key in the 'config' section for RooHistPdf.")
+            if 'name' not in _comp['config']:
+                raise Exception("Missing 'name' key in the 'config' section for RooHistPdf.")
+            _f = TFile(_comp['config']['file'])
+            _pdf = _f.Get(_comp['config']['name'])
+            _components.Add(_pdf)
         elif _comp["type"] == "Conv_RooDecay_RooBreitWigner":
             _r1 = RooGaussModel(
                     _name+"_resolution_1",
@@ -675,6 +810,162 @@ def init_pdfs(fit, params, prefix, signal):
                 )
             _pdf.setBufferFraction(100.0)
             _components.Add(_pdf)
+        elif _comp["type"] == "FFT_RooHistPdf_RooGaussian":
+            # Load reference ROOT tree
+            _ref_full_ch = TChain(_comp['config']['tree'])
+            _ref_full_ch.Add(_comp['config']['files'])
+            # Run selection
+            _ref_ch = _ref_full_ch.CopyTree(_comp['config']['selection'])
+            _bins = fit.mass.getBins()
+            fit.mass.setBins(_comp['config']['bins'])
+            # Create hist PDF
+            _data = RooDataSet(
+                    'ds_' + _name,
+                    '',
+                    RooArgSet(fit.mass),
+                    RooFit.Import(_ref_ch)
+                    )
+            _hist = _data.binnedClone()
+            _f1 = RooHistPdf(
+                    name+'_histpdf',
+                    _comp['title']+'_histpdf',
+                    RooArgSet(fit.mass),
+                    _hist,
+                    2  # Order of interpolation function
+                    )
+            fit.mass.setBins(_bins)
+
+            # Define sampling frequency
+            fit.mass.setBins(10000,"fft") ;
+            _f2 = RooGaussModel(
+                _name+"_comp_2",
+                _comp["title"]+"_comp_2",
+                fit.mass,
+                _comp_params.At(0),
+                _comp_params.At(1)
+                )
+            _funcs.Add(_hist)
+            _funcs.Add(_f1)
+            _funcs.Add(_f2)
+            _pdf = RooFFTConvPdf(
+                _name,
+                _comp["title"],
+                fit.mass,
+                _f2,
+                _f1
+                )
+            _pdf.setBufferFraction(5.0)
+            _components.Add(_pdf)
+        elif _comp["type"] == "Conv_RooHistPdf_RooGaussian":
+            if 'config' not in _comp:
+                raise Exception("Missing 'config' section for RooHistPdf.")
+            if 'file' not in _comp['config']:
+                raise Exception("Missing 'file' key in the 'config' section for RooHistPdf.")
+            if 'name' not in _comp['config']:
+                raise Exception("Missing 'name' key in the 'config' section for RooHistPdf.")
+            _file = TFile(_comp['config']['file'])
+            _f1 = _file.Get(_comp['config']['name'])
+            _f2 = RooGaussian(
+                _name+"_comp_2",
+                _comp["title"]+"_comp_2",
+                fit.mass,
+                _comp_params.At(0),
+                _comp_params.At(1)
+                )
+            _funcs.Add(_f1)
+            _funcs.Add(_f2)
+            _pdf = RooNumConvPdf(
+                _name,
+                _comp["title"],
+                fit.mass,
+                _f2,
+                _f1
+                )
+            _components.Add(_pdf)
+        elif _comp["type"] == "FFT_RooDoubleCBShape_RooGaussian":
+            # Define sampling frequency
+            fit.mass.setBins(10000,"fft") ;
+            _f1 = RooDoubleCBShape(
+                _name+"_comp_1",
+                _comp["title"]+"_comp_1",
+                fit.mass,
+                _comp_params.At(0),
+                _comp_params.At(1),
+                _comp_params.At(2),
+                _comp_params.At(3),
+                _comp_params.At(4),
+                _comp_params.At(5)
+                )
+            _f2 = RooGaussian(
+                _name+"_comp_2",
+                _comp["title"]+"_comp_2",
+                fit.mass,
+                _comp_params.At(6),
+                _comp_params.At(7)
+                )
+            _funcs.Add(_f1)
+            _funcs.Add(_f2)
+            _pdf = RooFFTConvPdf(
+                _name,
+                _comp["title"],
+                fit.mass,
+                _f1,
+                _f2
+                )
+            _pdf.setBufferFraction(50.0)
+            _components.Add(_pdf)
+        elif _comp["type"] == "FFT_2xCBShape_RooGaussian":
+            # Define sampling frequency
+            fit.mass.setBins(10000,"fft") ;
+            _cb_frac = RooRealVar(
+                    _name+"_cb_frac",
+                    _name+"_cb_frac",
+                    0.1, 0.0, 1.0)
+            _f1 = RooCBShape(
+                _name+"_comp_1",
+                _comp["title"]+"_comp_1",
+                fit.mass,
+                _comp_params.At(0),
+                _comp_params.At(1),
+                _comp_params.At(2),
+                _comp_params.At(3)
+                )
+            _f2 = RooCBShape(
+                _name+"_comp_2",
+                _comp["title"]+"_comp_2",
+                fit.mass,
+                _comp_params.At(0),
+                _comp_params.At(1),
+                _comp_params.At(4),
+                _comp_params.At(5)
+                )
+            _f3 = RooAddPdf(
+                _name+"_comp_3",
+                _comp["title"]+"_comp_3",
+                RooArgList(_f1, _f2),
+                RooArgList(_cb_frac),
+                kTRUE)
+            _f4 = RooGaussian(
+                _name+"_comp_4",
+                _comp["title"]+"_comp_4",
+                fit.mass,
+                _comp_params.At(6),
+                _comp_params.At(7)
+                )
+            _funcs.Add(_f1)
+            _funcs.Add(_f2)
+            _funcs.Add(_f3)
+            _funcs.Add(_f4)
+            _funcs.Add(_cb_frac)
+            _pdf = RooFFTConvPdf(
+                _name,
+                _comp["title"],
+                fit.mass,
+                _f3,
+                _f4
+                )
+            _pdf.setBufferFraction(50.0)
+            _components.Add(_pdf)
         else:
             raise Exception("Unknown PDF type: "+_comp["type"])
 
@@ -715,13 +1006,50 @@ for fpars in fit_params:
         fit.mass_fit_min = fpars["mass"]["fit_min"]
     if "fit_max" in fpars["mass"]:
         fit.mass_fit_max = fpars["mass"]["fit_max"]
+    if "plot_min" in fpars["mass"]:
+        fit.mass_plot_min = fpars["mass"]["plot_min"]
+    if "plot_max" in fpars["mass"]:
+        fit.mass_plot_max = fpars["mass"]["plot_max"]
     fit.single_candidate = fpars["single_candidate"]
     fit.bins = fpars["bins"]
     fit.bins_pull = fpars["bins_pull"]
     if "run_sfit" in fpars:
-        fit.run_sfit = fpars["run_sfit"];
+        fit.run_sfit = fpars["run_sfit"]
+    if "save_output" in fpars:
+        fit.save_output = fpars["save_output"]
     if "ncpu" in fpars:
         fit.ncpu = fpars["ncpu"]
+    if "control" in fpars:
+        cfunctions = {
+                "identity": TF1(
+                    "identity",
+                    "x",
+                    -999.0,
+                    999.0
+                    )
+                }
+        for func_pars in fpars["control"]["functions"]:
+            cfunc = TF1(
+                    func_pars["name"],
+                    func_pars["function"],
+                    func_pars["min"],
+                    func_pars["max"]
+                    )
+            cfunctions[func_pars["name"]] = cfunc
+        for control in fpars["control"]["variables"]:
+            cvar = RooRealVar(
+                    control["name"],
+                    control["title"],
+                    control["value"],
+                    control["min"],
+                    control["max"] )
+            fit.control_variables.push_back(cvar)
+            fit.control_names.push_back(str(control["var_name"]))
+            fit.control_titles.push_back(str(control["title"]))
+            if "function" in control and control["function"] is not None:
+                fit.control_functions.push_back(cfunctions[control["function"]])
+            else:
+                fit.control_functions.push_back(cfunctions["identity"])
     fit.init()
 
     sig_yield = fpars["signal"]["yield"]
@@ -756,9 +1084,13 @@ for fpars in fit_params:
     fit.fit_pdf = pdf
 
     fit_list.push_back(fit)
+    if args.load:
+        fit.load()
+        fit.plot()
 
-ch.MakeProxy("decayFit_proxy", os.path.join(script_dir, "decayFit.C"), "", "nohist")
-ch.Process("decayFit_proxy.h++");
+if not args.load:
+    ch.MakeProxy("decayFit_proxy", os.path.join(script_dir, "decayFit.C"), "", "nohist")
+    ch.Process("decayFit_proxy.h+");
 
 print "Done"
 print("--- %s seconds ---" % (time.time() - start_time))

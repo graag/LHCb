@@ -11,8 +11,11 @@
 #include <TTreeFormula.h>
 #include <TDataMember.h>
 #include <TLegend.h>
+#include <TFile.h>
+#include <TTree.h>
 
 #ifndef __CINT__
+#include "RooWorkspace.h"
 #include "RooGlobalFunc.h"
 #include "RooRealVar.h"
 #include "RooConstVar.h"
@@ -28,6 +31,7 @@
 #include "RooAddPdf.h"
 #include "RooProdPdf.h"
 #include "RooStats/SPlot.h"
+#include "RooPrintable.h"
 
 #include "RooIpatia.h"
 #include "RooIpatia2.h"
@@ -35,6 +39,9 @@
 #include "RooCassandra3.h"
 #include "RooAsymCassandra.h"
 #include "RooAsymCassandra3.h"
+#include "RooExpGaussExp.h"
+#include "RooDoubleCBShape.h"
+#include "RooCutCBShape.h"
 
 using namespace RooFit;
 //using namespace RooStats;
@@ -65,10 +72,12 @@ class MassFit
         string mass_err_name; // Name of NTUPLE variable with mass error
         string mass_title; // Title of mass axis
         string weight_name; // Name of a variable to use as a weight
-        Double_t mass_range_min; // Range of mass values to use in the fit
-        Double_t mass_range_max; //
-        Double_t mass_fit_min;
+        Double_t mass_range_min; // Range of mass values -
+        Double_t mass_range_max; // default for the plot and the fit
+        Double_t mass_fit_min; // Override fit mass range
         Double_t mass_fit_max;
+        Double_t mass_plot_min; // Override plot mass range
+        Double_t mass_plot_max;
         Double_t mass_logy_max;
         Double_t mass_logy_min;
 
@@ -78,6 +87,7 @@ class MassFit
         RooAbsPdf* fit_pdf; // Full PDF
         vector<RooAbsPdf*> sig_components; // Components of signal PDF
         vector<RooAbsPdf*> bkg_components; // Components of background PDF
+        vector<RooAbsPdf*> constraints; // Components of background PDF
         // Fit parameters
         RooRealVar* sig_n; // # Signal event
         RooRealVar* bkg_n; // # Background events
@@ -108,7 +118,8 @@ class MassFit
         Int_t bins; // Number of bins to use on the plot
         Int_t bins_pull; // Number of bins to use on the pullplot
         Int_t ncpu; // Number of CPU cores to use in the fit
-        Bool_t run_sfit;
+        Bool_t run_sfit; // Execute sFit and calculate sWeights
+        Bool_t save_output; // Store output data as ROOT file
 
         UInt_t run;
         ULong64_t event;
@@ -118,6 +129,8 @@ class MassFit
         void fit();
         void sfit();
         void plot();
+        void save();
+        void load();
 };
 // Globals
 
