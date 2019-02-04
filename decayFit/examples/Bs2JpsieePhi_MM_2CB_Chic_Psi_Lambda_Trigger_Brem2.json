@@ -1,0 +1,322 @@
+[
+{
+    "name": "B^{0}_{s} {{ tag }}",
+    "selection": "sigmam_std>0. && sigmam_std<250. && time>0.3 && time<14. && sigmat<0.12 && Kplus_probnnp<0.6 && BDT_response_NewSel_MCS21corr>0.2 && (l0_unbiased==1||hlt1_biased==1||hlt2_biased==1) && mass_std>{{ mass_min }} && mass_std<{{ mass_max }} && {{ class_cut }}",
+    "single_candidate": false,
+    "run_sfit": false,
+    "save_output": false,
+    "bins": 80,
+    "bins_pull": 80,
+    "mass": {
+        "var_name": "mass_std",
+        "err_name": "sigmam_std",
+        "title": "m(e^{+}e^{-}K^{+}K^{-}) [MeV/c^{2}]",
+        "min": {{ mass_min }},
+        "max": {{ mass_max }}
+    },
+    "signal": {
+        "components": [
+        {
+            "name": "sig_tail_1",
+            "title": "Signal Tail 1",
+            "type": "RooCBShape",
+            "fraction": {
+                "value": 0.59,
+                "min": 0.59,
+                "max": 0.59
+            },
+            "params": [
+            {
+                "name": "M",
+                "title": "Signal mass",
+                "value": 5360.0,
+                "min": 5000.0,
+                "max": 5900.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#sigma_1",
+                "title": "Signal core mass resolution",
+                "value": 50.0,
+                "min": 1.0,
+                "max": 90.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#alpha_1",
+                "title": "Signal core BW width",
+                "value": 0.37,
+                "min": 0.37,
+                "max": 0.37,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "n_1",
+                "title": "Signal core BW width",
+                "value": 21.0,
+                "min": 21.0,
+                "max": 21.0,
+                "units": "Mev/c^{2}"
+            }
+            ]
+        },
+        {
+            "name": "sig_tail_2",
+            "title": "Signal Tail 2",
+            "type": "RooParamCBShape",
+            "params": [
+            {
+                "name": "M"
+            },
+            {
+                "name": "#sigma_1"
+            },
+            {
+                "name": "#sigma_scale",
+                "title": "Signal core mass resolution",
+                "value": 0.96,
+                "min": 0.96,
+                "max": 0.96,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#alpha_2",
+                "title": "Signal core BW width",
+                "value": -0.546,
+                "min": -0.546,
+                "max": -0.546,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "n_1"
+            }
+            ]
+        }
+        ],
+        "yield": {
+            "name": "N_{Sig}",
+            "title": "Number of signal events",
+            "value": 3.0e+4,
+            "min": 0,
+            "max": 1.0e+6
+        }
+    },
+    "background": {
+        "components": [
+        {
+            "name": "bg",
+            "title": "Background",
+            "type": "RooExponential",
+            "params": [
+            {
+                "name": "m_bg_exp",
+                "title": "Background exponent",
+                "value": -0.01,
+                "min": -1.0,
+                "max": 0.0,
+                "units": "Mev/c^{2}"
+            }
+            ]
+        },
+        {
+            "name": "partial_bg",
+            "title": "Patrial BG",
+            "type": "RooAddPdf",
+            "params": [],
+            "components": [
+            {
+                "name": "chic",
+                "title": "Chi_c",
+                "type": "RooGaussian",
+                "fraction": {
+                    "value": 0.1,
+                    "min": 0.0,
+                    "max": 1.0,
+                    "constraint": {
+                        "mean": 0.17254,
+                        "sigma": 0.02055
+                    }
+                },
+                "params": [
+                {
+                    "name": "M_chic",
+                    "title": "Chi_c mass",
+                    "value": 4864.0,
+                    "min": 4864.0,
+                    "max": 4864.0,
+                    "units": "Mev/c^{2}"
+                },
+                {
+                    "name": "#sigma_{chic}",
+                    "title": "Chi_c mass resolution",
+                    "value": 150.0,
+                    "min": 150.0,
+                    "max": 150.0,
+                    "units": "Mev/c^{2}"
+                }
+                ]
+            },
+            {
+                "name": "psi2s",
+                "title": "Psi_2s",
+                "type": "RooAddPdf",
+                "params": [],
+                "components": [
+                {
+                    "name": "psi2s_1",
+                    "title": "Psi_1",
+                    "type": "RooGaussian",
+                    "fraction": {
+                        "value": 0.1,
+                        "min": 0.1,
+                        "max": 0.1
+                    },
+                    "params": [
+                    {
+                        "name": "M_psi",
+                        "title": "Psi_2s mass",
+                        "value": 4717.0,
+                        "min": 4717.0,
+                        "max": 4717.0,
+                        "units": "Mev/c^{2}"
+                    },
+                    {
+                        "name": "#sigma_{psi_1}",
+                        "title": "Psi_2s mass resolution",
+                        "value": 84.0,
+                        "min": 84.0,
+                        "max": 84.0,
+                        "units": "Mev/c^{2}"
+                    }
+                    ]
+                },
+                {
+                    "name": "psi2s_2",
+                    "title": "Psi_2",
+                    "type": "RooGaussian",
+                    "params": [
+                    {
+                        "name": "M_psi"
+                    },
+                    {
+                        "name": "#sigma_{psi_2}",
+                        "title": "Psi_2s mass resolution",
+                        "value": 119.0,
+                        "min": 119.0,
+                        "max": 119.0,
+                        "units": "Mev/c^{2}"
+                    }
+                    ]
+                }
+                ]
+            }
+            ]
+        }
+        ],
+        "yield": {
+            "name": "N_{Bkg}",
+            "title": "Number of background events",
+            "value": 3.0e+4,
+            "min": 0,
+            "max": 1.0e+6
+        }
+    },
+    "extra": {
+        "components": [
+        {
+            "name": "Lb_tail_1",
+            "title": "Lb Tail 1",
+            "type": "RooCBShape",
+            "fraction": {
+                "value": 0.66,
+                "min": 0.66,
+                "max": 0.66
+            },
+            "params": [
+            {
+                "name": "M_Lb",
+                "title": "Signal mass",
+                "value": 5234.0,
+                "min": 5234.0,
+                "max": 5234.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#sigma_Lb_1",
+                "title": "Signal core mass resolution",
+                "value": 149.0,
+                "min": 149.0,
+                "max": 149.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#alpha_Lb_1",
+                "title": "Signal core BW width",
+                "value": 0.44,
+                "min": 0.44,
+                "max": 0.44,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "n_Lb",
+                "title": "Signal core BW width",
+                "value": 1.0,
+                "min": 1.0,
+                "max": 1.0,
+                "units": "Mev/c^{2}"
+            }
+            ]
+        },
+        {
+            "name": "Lb_tail_2",
+            "title": "Signal Tail 2",
+            "type": "RooParamCBShape",
+            "params": [
+            {
+                "name": "M_Lb"
+            },
+            {
+                "name": "#sigma_Lb_1"
+            },
+            {
+                "name": "#sigma_Lb_scale",
+                "title": "Signal core mass resolution",
+                "value": 1.02,
+                "min": 1.02,
+                "max": 1.02,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#alpha_Lb_2",
+                "title": "Signal core BW width",
+                "value": -8.1,
+                "min": -8.1,
+                "max": -8.1,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "n_Lb"
+            }
+            ]
+        }
+        ],
+        "yield": {
+            "name": "N_{Lb}",
+            "title": "Number of Lb events",
+            "value": 3.0e+4,
+            "min": 0,
+            "max": 1.0e+6,
+            "formula": "0.02*@0",
+            "params": [
+            {
+                "name":"N_{Sig}"
+            }
+            ]
+        }
+    },
+    "control": {
+        "variables": [ ],
+        "functions": [ ]
+    }
+}
+]
