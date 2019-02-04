@@ -5,8 +5,10 @@ import sys
 import json
 import time
 import argparse
+import random
 
 supported_pdfs = [
+        "RooAddPdf",
         "RooGaussian",
         "RooParamGaussian",
         "RooParamGaussianOffset",
@@ -23,6 +25,7 @@ supported_pdfs = [
         "RooIpatia",
         "RooIpatia2",
         "RooCassandra",
+        "RooAsymCassandra",
         "RooDecay",
         "RooDecayLeft",
         "RooDecayRight",
@@ -140,10 +143,12 @@ def init_pdfs(fit, params, prefix, signal):
 
     _pdf = None  #: Composit PDF to return
     _components = TList()  #: List of component PDFs
+    _components_all = TList()  #: List of component PDFs
     _fracs = TList()  #: List of fractions
     _funcs = TList()  #: List of formula variables
     _params = { prefix+"_"+fit.mass_name: fit.mass }
     _i = 1
+    _n_comps = len(params["components"])
     for _comp in params["components"]:
         # Create parameters
         _comp_params = TList()
@@ -153,10 +158,25 @@ def init_pdfs(fit, params, prefix, signal):
             if _name in _params:
                 _comp_params.append(_params[_name])
             else:
-                _var = RooRealVar(
-                        _name, _par["title"], _par["value"],
-                        _par["min"], _par["max"], _par["units"]
-                        )
+                if "random" in _par and _par["random"] == True:
+                    # Generate starting value and validity range
+                    _min = random.uniform(_par["min"], _par["value"])
+                    _max = random.uniform(_par["value"], _par["max"])
+                    _value = random.uniform(_min, _max)
+                    _par["random"] = False
+                    # Store obtained values
+                    _par["min"] = _min
+                    _par["max"] = _max
+                    _par["value"] = _value
+                    _var = RooRealVar(
+                            _name, _par["title"], _value,
+                            _min, _max, _par["units"]
+                            )
+                else:
+                    _var = RooRealVar(
+                            _name, _par["title"], _par["value"],
+                            _par["min"], _par["max"], _par["units"]
+                            )
                 fit.parameters.push_back(_var)
                 _comp_params.Add(_var)
                 _params[_name] = _var
@@ -177,8 +197,13 @@ def init_pdfs(fit, params, prefix, signal):
         _name = prefix+"_"+_comp["name"]
         # Initialize component
         if _comp["type"] not in supported_pdfs:
-            raise Exception("Unknown PDF type: "+_comp["type"])
-        if _comp["type"] == "RooGaussian":
+            raise Exception("Unknown PDF type: %s" % _comp["type"])
+        if _comp["type"] == "RooAddPdf":
+            (_sum_pdf, _sum_components, _sum_params) = init_pdfs(fit, _comp, _comp['name'], signal)
+            _components_all.AddAll(_sum_components)
+            _components.Add(_sum_pdf)
+            _params.update(_sum_params)
+        elif _comp["type"] == "RooGaussian":
             _components.Add(RooGaussian(
                     _name,
                     _comp["title"],
@@ -380,6 +405,17 @@ def init_pdfs(fit, params, prefix, signal):
                     _comp_params.At(1),
                     _comp_params.At(2),
                     _comp_params.At(3))
+                    )
+        elif _comp["type"] == "RooAsymCassandra":
+            _components.Add(RooAsymCassandra(
+                    _name,
+                    _comp["title"],
+                    fit.mass,
+                    _comp_params.At(0),
+                    _comp_params.At(1),
+                    _comp_params.At(2),
+                    _comp_params.At(3),
+                    _comp_params.At(4))
                     )
         elif _comp["type"] == "RooDecay":
             _r = RooGaussModel(
@@ -969,16 +1005,33 @@ def init_pdfs(fit, params, prefix, signal):
         else:
             raise Exception("Unknown PDF type: "+_comp["type"])
 
-        if _i > 1:
-            _fracs.Add(RooRealVar(
-                    prefix+"_frac_"+str(_i),
-                    prefix+" component "+str(_i)+" fraction",
-                    0.1, 0.0, 1.0)
-                    )
+        if _i < _n_comps:
+            _f_v = 0.1
+            _f_min = 0.0
+            _f_max = 1.0
+            if "fraction" in _comp:
+                _f_v = _comp["fraction"]["value"]
+                _f_min = _comp["fraction"]["min"]
+                _f_max = _comp["fraction"]["max"]
+            _f = RooRealVar(
+                    prefix+"_frac_"+_comp["name"],
+                    prefix+" component "+_comp["name"]+" fraction",
+                    _f_v, _f_min, _f_max)
+            if "fraction" in _comp and "constraint" in _comp["fraction"]:
+                _constr = RooGaussian(
+                        _name+"_frac_constr",
+                        _name+"_frac_constr",
+                        _f,
+                        RooFit.RooConst(_comp["fraction"]["constraint"]["mean"]),
+                        RooFit.RooConst(_comp["fraction"]["constraint"]["sigma"])
+                        )
+                fit.constraints.push_back(_constr)
+                _comp_constrs.Add(_constr)
+            _fracs.Add(_f)
 
         _i += 1
 
-    if _fracs.GetSize() == 0:
+    if _n_comps == 1:
         _pdf = _components.At(0)
     else:
         # Make sure we are creating a recursive composit PDF
@@ -989,7 +1042,8 @@ def init_pdfs(fit, params, prefix, signal):
             RooArgList(_fracs),
             kTRUE)
 
-    return (_pdf, _components)
+    _components_all.AddAll(_components)
+    return (_pdf, _components_all, _params)
 
 # Generate fit instances
 for fpars in fit_params:
@@ -1051,42 +1105,105 @@ for fpars in fit_params:
             else:
                 fit.control_functions.push_back(cfunctions["identity"])
     fit.init()
+    all_params = {}
 
     sig_yield = fpars["signal"]["yield"]
     nsig = RooRealVar( str(sig_yield["name"]), str(sig_yield["title"]),
             sig_yield["value"], sig_yield["min"], sig_yield["max"])
     fit.sig_n = nsig
+    all_params[sig_yield["name"]] = nsig
     prefix = "Sig"
     if len(fit_params) > 1:
         prefix = fit.name + "_" + prefix
-    (sig_pdf, sig_components) = init_pdfs(fit, fpars["signal"], prefix, True)
+    (sig_pdf, sig_components, sig_params) = init_pdfs(fit, fpars["signal"], prefix, True)
+    all_params.update(sig_params)
 
     bkg_yield = fpars["background"]["yield"]
     nbkg = RooRealVar( bkg_yield["name"], bkg_yield["title"],
             bkg_yield["value"], bkg_yield["min"], bkg_yield["max"])
+    all_params[bkg_yield["name"]] = nbkg
     fit.bkg_n = nbkg
     prefix = "Bg"
     if len(fit_params) > 1:
         prefix = fit.name + "_" + prefix
-    (bkg_pdf, bkg_components) = init_pdfs(fit, fpars["background"], prefix, False)
+    (bkg_pdf, bkg_components, bkg_params) = init_pdfs(fit, fpars["background"], prefix, False)
+    all_params.update(bkg_params)
 
-    pdf = RooAddPdf(
-            "MassPdf^{"+fit.name+"}",
-            "Mass PDF",
-            RooArgList(sig_pdf, bkg_pdf),
-            RooArgList(nsig, nbkg) )
+    nextra = None
+    if 'extra' in fpars:
+        prefix = "Ext"
+        if len(fit_params) > 1:
+            prefix = fit.name + "_" + prefix
+        (extra_pdf, extra_components, extra_params) = init_pdfs(fit, fpars["extra"], prefix, False)
+        extra_yield = fpars["extra"]["yield"]
+        if 'params' in extra_yield:
+            _extra_params = TList()
+            _extra_constrs = TList()
+            for _par in extra_yield["params"]:
+                _name = _par["name"]
+                if _name in all_params:
+                    _extra_params.append(all_params[_name])
+                else:
+                    _var = RooRealVar(
+                            _name, _par["title"], _par["value"],
+                            _par["min"], _par["max"], _par["units"]
+                            )
+                    fit.parameters.push_back(_var)
+                    _extra_params.Add(_var)
+                    all_params[_name] = _var
+                    if "constraint" in _par:
+                        _constr = RooGaussian(
+                                _name+"_constr",
+                                _par["title"]+"_constr",
+                                _var,
+                                RooFit.RooConst(_par["constraint"]["mean"]),
+                                RooFit.RooConst(_par["constraint"]["sigma"])
+                                )
+                        fit.constraints.push_back(_constr)
+                        _extra_constrs.Add(_constr)
+
+            nextra = RooFormulaVar(
+                    extra_yield["name"],
+                    extra_yield["title"],
+                    extra_yield["formula"],
+                    RooArgList(_extra_params))
+        else:
+            nextra = RooRealVar( extra_yield["name"], extra_yield["title"],
+                    extra_yield["value"], extra_yield["min"], extra_yield["max"])
+
+    if nextra is None:
+        pdf = RooAddPdf(
+                "MassPdf^{"+fit.name+"}",
+                "Mass PDF",
+                RooArgList(sig_pdf, bkg_pdf),
+                RooArgList(nsig, nbkg) )
+    else:
+        pdf = RooAddPdf(
+                "MassPdf^{"+fit.name+"}",
+                "Mass PDF",
+                RooArgList(sig_pdf, bkg_pdf, extra_pdf),
+                RooArgList(nsig, nbkg, nextra) )
     fit.sig_pdf = sig_pdf
     fit.bkg_pdf = bkg_pdf
     for x in range(sig_components.GetSize()):
         fit.sig_components.push_back(sig_components.At(x))
     for x in range(bkg_components.GetSize()):
         fit.bkg_components.push_back(bkg_components.At(x))
+    if nextra is not None:
+        for x in range(extra_components.GetSize()):
+            fit.bkg_components.push_back(extra_components.At(x))
     fit.fit_pdf = pdf
 
     fit_list.push_back(fit)
     if args.load:
         fit.load()
         fit.plot()
+
+# Store actual fit params
+# Store actual fit setup
+with open("FitRandomized.json", "w") as f:
+    json.dump(fit_params, f)
+
 
 if not args.load:
     ch.MakeProxy("decayFit_proxy", os.path.join(script_dir, "decayFit.C"), "", "nohist")
