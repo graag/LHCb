@@ -60,6 +60,8 @@ parser.add_argument('-l', '--list', dest='list', action='store_true',
                     help='List supported PDFs.')
 parser.add_argument('-L', '--load', dest='load', action='store_true',
                     help='Load fit results from a ROOT file. Skip loading trees.')
+parser.add_argument('-p', '--plot', dest='plot', action='store_true',
+                    help='Plot PDFs with starting parameters.')
 
 args = parser.parse_args()
 
@@ -89,9 +91,9 @@ print "Path in ROOT file: " + path
 print "Input files: %s" % jobs
 
 # Setup ROOT
-sys.argv.append('-b')
+#sys.argv.append('-b')
 import ROOT
-from ROOT import gSystem, gROOT, TChain, TF1, TH1D, TPaveLabel, TList, kTRUE
+from ROOT import gSystem, gROOT, TChain, TF1, TH1D, TPaveLabel, TList, kTRUE, kRed
 from ROOT import TFile
 
 if not args.load:
@@ -1050,6 +1052,7 @@ for fpars in fit_params:
     fit = MassFit()
 
     fit.name = str(fpars["name"])
+    fit.title = str(fpars["title"])
     fit.selection = str(fpars["selection"])
     fit.mass_name = str(fpars["mass"]["var_name"])
     fit.mass_err_name = str(fpars["mass"]["err_name"])
@@ -1211,9 +1214,19 @@ for fpars in fit_params:
     fit.fit_pdf = pdf
 
     fit_list.push_back(fit)
+    if args.plot:
+        frame = fit.mass.frame(RooFit.Title(fit.title))
+        fit.sig_pdf.plotOn(frame)
+        frame.Draw()
+        fit.bkg_pdf.plotOn(frame, RooFit.LineColor(kRed))
+        frame.Draw("same")
     if args.load:
         fit.load()
         fit.plot()
+
+if args.plot:
+    raw_input("Press Enter to continue...")
+    sys.exit()
 
 # Store actual fit params
 # Store actual fit setup
@@ -1227,5 +1240,5 @@ if not args.load:
 
 print "Done"
 print("--- %s seconds ---" % (time.time() - start_time))
-#raw_input("Press Enter to continue...")
+raw_input("Press Enter to continue...")
 
