@@ -19,14 +19,47 @@ Create your own fit setup based on decayFitSetup.C. The setup is written in json
 - RooDecayRight
 - RooBwDecay     (convolution of exponential decay function and Breit-Wigner)
 
+- RooGaussian
+- RooParamGaussian                       (gauss width with a scale factor)
+- RooPolynomial
+- RooChebychev
+- RooExponential
+- RooVoigtian
+- RooCBShape
+- RooArgusBG
+- RooRArgusBG                            (reversed Argus shape)
+- RooIpatia
+- RooCassandra                           (exponential decay with two decay constants)
+- RooDecay
+- RooDecayLeft
+- RooDecayRight
+- FFT_RooDecay_RooBreitWigner            (FFT convolution of RooDecay and BreitWigner)
+- Conv_RooDecay_RooBreitWigner           (Numerical convolution of RooDecay and BreitWigner)
+- FFT_RooDecay_RooCBShape
+- FFT_RooCassandra_RooGaussian
+- FFT_RooAsymCassandra_RooGaussian       (FFT convolution of exponential decay with two asymmetric decay constants and a gauss)
+- FFT_RooAsymCassandra_RooDoubleGaussian
+- Conv_RooAsymCassandra_RooGaussian
+- FFT_RooAsymCassandra3_RooGaussian
+- FFT_RooCassandra_RooCBShape
+- FFT_RooCassandra3_RooCBShape
+
+Requires ROOT 6 and recent python 2.7.
+
 Execute using decayFit.py:
 
 ```
-decayFit.py [-h/--help] <setup> <tree> tree.root []
+usage: decayFit.py [-h] [--setup SETUP] [--list] TREE [TREE ...]
 
-<setup> - name of setup file: e.g. Bs_SIG_2Gauss_BKG_Chebyshev.json
-<tree> - tree name, can contain path: e.g. TupleBs/DecayTree
-tree.root - input ROOT files
+Fit decay distribution using predefined PDF.
+
+positional arguments:
+  TREE           ROOT files with data tree.
+
+optional arguments:
+  -h, --help     show this help message and exit
+  --setup SETUP  Name of Json file with fit description.
+  --list         List supported PDFs.
 ```
 
 For each defined fit pdf files will be generated for mass spectrum and all defined control_variables.

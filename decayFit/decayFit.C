@@ -142,7 +142,7 @@ Bool_t decayFit_Process(Long64_t entry)
                }
 
                for(unsigned i=0; i<_fit->control_names.size(); i++) {
-                   double v;
+                   double v=0;
                    _member = fClass->GetDataMember(_fit->control_names[i].c_str());
                    _member_type = string(_member->GetTypeName());
                    if(_member->IsaPointer())
@@ -262,6 +262,8 @@ void decayFit_Terminate()
         if(_fit->run_sfit)
             _fit->sfit();
         _fit->plot();
+        if(_fit->save_output)
+            _fit->save();
 
         f<<_fit->fom<<","<<_fit->fom_err<<",";
         f<<_fit->sig_n->getVal()<<","<<_fit->sig_n->getError()<<",";

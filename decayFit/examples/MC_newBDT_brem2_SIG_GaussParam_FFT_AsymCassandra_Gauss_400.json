@@ -1,0 +1,128 @@
+[
+{
+    "name": "B^{0}_{s_DTF} MC Signal, Brem2",
+    "selection": "sigmam>0. && sigmam<250. && time>0.3 && time<14. && sigmat<0.12 && BDT_response_NewSel>0.2 && mass>5165.0 && mass<5565.0 && mass_std>5165.0 && mass_std<5565.0 && eminus_bremmult>=1 && eplus_bremmult>=1",
+    "single_candidate": false,
+    "bins": 80,
+    "bins_pull": 80,
+    "mass": {
+        "var_name": "mass",
+        "err_name": "sigmam",
+        "title": "M(J/#psi K^{+}K^{-}) [MeV/c^{2}]",
+        "min": 5165.0,
+        "max": 5565.0
+    },
+    "signal": {
+        "components": [
+        {
+            "name": "sig_core",
+            "title": "Signal Core",
+            "type": "RooParamGaussian",
+            "params": [
+            {
+                "name": "M",
+                "title": "Signal mass",
+                "value": 5360.0,
+                "min": 5200.0,
+                "max": 5700.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#sigma",
+                "title": "Signal mass resolution",
+                "value": 5.0,
+                "min": 1.0,
+                "max": 10.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#scale",
+                "title": "Signal mass resolution scale",
+                "value": 1.5,
+                "min": 1.0,
+                "max": 5.0,
+                "units": ""
+            }
+            ]
+        },
+        {
+            "name": "sig_tail",
+            "title": "Signal Core",
+            "type": "FFT_RooAsymCassandra_RooGaussian",
+            "params": [
+            {
+                "name": "M"
+            },
+            {
+                "name": "#tau_1",
+                "title": "exponent",
+                "value": 3.0,
+                "min": 0.001,
+                "max": 50.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#tau_2",
+                "title": "exponent",
+                "value": 10.0,
+                "min": 1.0,
+                "max": 100.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#tau_3",
+                "title": "exponent",
+                "value": 10.0,
+                "min": 0.001,
+                "max": 50.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#tau_4",
+                "title": "exponent",
+                "value": 30.0,
+                "min": 1.0,
+                "max": 100.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "Bias",
+                "title": "Decay bias",
+                "value": 0.0,
+                "min": 0.0,
+                "max": 5.0,
+                "units": "Mev/c^{2}"
+            },
+            {
+                "name": "#sigma"
+            }
+            ]
+        }
+        ],
+        "yield": {
+            "name": "N_{Sig}",
+            "title": "Number of signal events",
+            "value": 3.0e+5,
+            "min": 0,
+            "max": 1.0e+10
+        }
+    },
+    "background": {
+        "components": [
+        {
+            "name": "bg",
+            "title": "Background",
+            "type": "RooPolynomial",
+            "params": []
+        }
+        ],
+        "yield": {
+            "name": "N_{Bkg}",
+            "title": "Number of background events",
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0
+        }
+    }
+}
+]
