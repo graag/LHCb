@@ -323,8 +323,8 @@ void MassFit::plot()
         mass_lo = mass_plot_min;
         mass_hi = mass_plot_max;
     }
-    //RooPlot *mframe = mass->frame(Bins(bins), Range(mass_lo, mass_hi));
-    RooPlot *mframe = mass->frame(mass_lo, mass_hi, bins);
+    RooPlot *mframe = mass->frame(Bins(bins), Range(mass_lo, mass_hi));
+    //RooPlot *mframe = mass->frame(mass_lo, mass_hi, bins);
     mframe->SetTitle(name.c_str());
     mframe->GetXaxis()->SetTitle(mass_title.c_str());
     mframe->GetYaxis()->SetNdivisions(505);
@@ -368,7 +368,7 @@ void MassFit::plot()
     canvas->cd(2);
     RooHist* hpull = mframe->pullHist();
     //TODO Add option to disable title
-    RooPlot* mframe2 = mass->frame(Title("Pull"),Bins(bins_pull));
+    RooPlot* mframe2 = mass->frame(Title("Pull"), Bins(bins_pull), Range(mass_lo, mass_hi));
     //TODO Add option to select style??
     mframe2->addPlotable(hpull,"E3");
     mframe2->GetXaxis()->SetTitle(mass_title.c_str());
@@ -378,7 +378,7 @@ void MassFit::plot()
     mframe2->SetLabelSize(0.1,"x");
     mframe2->SetLabelSize(0.1,"y");
     mframe2->Draw();
-    TLine* l_centr = new TLine(mass_range_min+(mass_range_max-mass_range_min)/50.0,0,mass_range_max-(mass_range_max-mass_range_min)/50.0,0);
+    TLine* l_centr = new TLine(mass_lo+(mass_hi-mass_lo)/50.0,0,mass_hi-(mass_hi-mass_lo)/50.0,0);
     l_centr->SetLineColor(2);
     l_centr->SetLineWidth(3);
     l_centr->Draw("same");

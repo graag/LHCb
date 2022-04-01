@@ -67,6 +67,7 @@ class MassFit
 
         // Base fit params
         string name; // Decay name
+        string title; // Decay plot title
         string selection; // Selection string
         string mass_name; // Name of NTUPLE variable with mass value
         string mass_err_name; // Name of NTUPLE variable with mass error

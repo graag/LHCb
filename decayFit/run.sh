@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N {{ name }}
-#PBS -q o12h
+#PBS -q i12h
 
 module load root/6.11.02-x86_64-gcc71-python27
 
