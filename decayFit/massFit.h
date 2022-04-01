@@ -11,6 +11,8 @@
 #include <TTreeFormula.h>
 #include <TDataMember.h>
 #include <TLegend.h>
+#include <TTree.h>
+#include <TFile.h>
 
 #ifndef __CINT__
 #include "RooGlobalFunc.h"

@@ -159,8 +159,7 @@ MassFit::~MassFit()
 
 void MassFit::init()
 {
-    if(name.empty() || mass_name.empty() || mass_err_name.empty() ||
-            mass_range_min == mass_range_max)
+    if(name.empty() || mass_name.empty() || mass_range_min == mass_range_max)
         throw string("Data not defined.");
 
     mass  = new RooRealVar(
@@ -355,24 +354,29 @@ void MassFit::plot()
     delete mframe;
     delete mframe2;
 
+    TFile * output_file = new TFile("output.root", "RECREATE");
+    TTree * tree = data->GetClonedTree();
+    tree->SetName("dataNTuple");
+    tree->Write();
+    output_file->Close();
     // Extract a data set with sWeights. The sWeights are multipled by the
     // original weights (at least they should be ...)
-    //string w_name = string(sig_n->GetName()) + "_sw";
-    //RooDataSet * data_weight = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,w_name.c_str()) ;
+    string w_name = string(sig_n->GetName()) + "_sw";
+    RooDataSet * data_weight = new RooDataSet(data->GetName(),data->GetTitle(),data,*data->get(),0,w_name.c_str()) ;
 
-    /*
+    delete canvas;
+    canvas = new TCanvas((string("Canvas ")+name).c_str(),"",600,480);
     for(unsigned i=0; i<control_names.size(); i++) {
         RooPlot *mframe = control_variables[i]->frame(Bins(bins));
-        mframe->SetTitle(name.c_str());
-        mframe->GetXaxis()->SetTitle(control_titles[i].c_str());
+        mframe->SetTitle(control_titles[i].c_str());
+        mframe->GetXaxis()->SetTitle(control_names[i].c_str());
         mframe->GetYaxis()->SetNdivisions(505);
 
         data_weight->plotOn(mframe, Name("myData"));
         mframe->Draw();
-        canvas->Print((mass_name + string("_") + control_names[i] + ".eps").c_str());
+        canvas->Print((mass_name + string("_") + control_names[i] + ".pdf").c_str());
         delete mframe;
     }
-    */
 }
 
 // Globals

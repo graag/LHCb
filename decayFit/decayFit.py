@@ -326,6 +326,22 @@ for fpars in fit_params:
         fit.mass_fit_min = fpars["mass"]["fit_min"]
     if "fit_max" in fpars["mass"]:
         fit.mass_fit_max = fpars["mass"]["fit_max"]
+    for obs in fpars["observables"]:
+        obs_var = RooRealVar(
+            obs["name"],
+            obs["title"],
+            obs["min"],
+            obs["max"],
+            obs["unit"],
+        )
+        fit.control_variables.push_back(obs_var)
+        fit.control_names.push_back(str(obs["var_name"]))
+        fit.control_titles.push_back(str(obs["title"]))
+        obs_func = None
+        if "function" in obs:
+            obs_func = TF1(obs["funcion"]["name"], obs["function"]["value"],
+                           obs["function"]["min"], obs["function"]["max"])
+        fit.control_functions.push_back(obs_func)
     fit.single_candidate = fpars["single_candidate"]
     fit.bins = fpars["bins"]
     fit.bins_pull = fpars["bins_pull"]
@@ -372,5 +388,5 @@ ch.Process("decayFit_proxy.h++");
 
 print "Done"
 
-raw_input("Press Enter to continue...")
+#raw_input("Press Enter to continue...")
 
